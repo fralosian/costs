@@ -1,0 +1,99 @@
+{
+  "projects": [
+    {
+      "id": "3ec3",
+      "category": {
+        "id": "2",
+        "name": "Desenvolvimento"
+      },
+      "name": "Sistema TechJobs",
+      "budget": "15000",
+      "cost": 4000,
+      "services": [
+        {
+          "name": "contratação de programador ",
+          "cost": "4000",
+          "description": "Profissional Daniel",
+          "id": "4e8f8d62-6e5f-4ef1-8157-7cbbf6df3d0b"
+        }
+      ]
+    },
+    {
+      "id": "ed7e",
+      "name": "Teste 2",
+      "budget": "1000",
+      "category": {
+        "id": "4",
+        "name": "Planejamento"
+      },
+      "cost": 500,
+      "services": [
+        {
+          "name": "Compra  de xx",
+          "cost": "500",
+          "description": "compra no dia 15/05 para a xxx",
+          "id": "f1c6037c-0924-4635-88ef-945c253f40f7"
+        }
+      ]
+    },
+    {
+      "id": "fb35",
+      "name": "Criação no canva",
+      "budget": "100000",
+      "category": {
+        "id": "3",
+        "name": "Design"
+      },
+      "cost": 2222,
+      "services": [
+        {
+          "name": "1",
+          "cost": "2222",
+          "description": "3",
+          "id": "b2cb0418-5cd0-43b5-b261-824cac4cfbcc"
+        }
+      ]
+    },
+    {
+      "id": "4824",
+      "name": "Instalação de infraestrutura Mercure Guarulhos",
+      "budget": "50000",
+      "category": {
+        "id": "1",
+        "name": "Infraestrutura"
+      },
+      "cost": 5000,
+      "services": [
+        {
+          "name": "Compra de cabeamento",
+          "cost": "5000",
+          "description": "Compra de CABO RJ-45 e fibra optica",
+          "id": "9c8bfcca-6c13-48ea-b7d7-e0813b0d112c"
+        }
+      ]
+    }
+  ],
+  "categories": [
+    {
+      "id": "1",
+      "name": "Infraestrutura"
+    },
+    {
+      "id": "2",
+      "name": "Desenvolvimento"
+    },
+    {
+      "id": "3",
+      "name": "Design"
+    },
+    {
+      "id": "4",
+      "name": "Planejamento"
+    },
+    {
+      "id": "5",
+      "name": "Administração"
+    }
+  ],
+  "messages": []
+}
