@@ -7,8 +7,8 @@
 - **Cadastro de Projetos:** Adicione novos projetos com informações detalhadas, como nome, descrição e valores estimados.
 - **Gerenciamento de Custos:** Controle os custos de cada projeto de maneira visual, com a possibilidade de editar e ajustar os valores conforme necessário.
 - **Gerenciamento de Categorias:** Crie, edite e exclua categorias personalizadas para organizar melhor seus projetos.
-- **Cores Personalizáveis:** Atribua cores únicas para cada categoria, facilitando a identificação visual.
 - **Exibição de Mensagens:** Visualize mensagens enviadas relacionadas aos projetos para melhor acompanhamento.
+- **Cores Personalizáveis:** Atribua cores únicas para cada categoria, facilitando a identificação visual.
 - **Interface Responsiva:** A aplicação foi construída com design responsivo, garantindo uma ótima experiência de uso em dispositivos móveis e desktops.
 - **Integração com Firebase:** Dados armazenados e sincronizados em tempo real via Firebase Firestore, garantindo maior confiabilidade e escalabilidade.
 
@@ -28,6 +28,7 @@ Para rodar o projeto localmente, siga os passos abaixo:
    ```bash
    git clone https://github.com/fralosian/costs.git
 
+
 2. Navegue até o diretório do projeto:
 
 cd costs
@@ -44,6 +45,7 @@ npm install
 
 5. Execute o frontend:
 npm start
+
 
 Agora, abra seu navegador e acesse http://localhost:3000 para ver a aplicação em ação.
 
