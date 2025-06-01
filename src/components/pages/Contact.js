@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { FaPhoneAlt, FaEnvelope } from 'react-icons/fa';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../../firebase'; // ajuste o caminho conforme seu projeto
 
 function Contact() {
     const [formData, setFormData] = useState({
@@ -15,38 +17,24 @@ function Contact() {
         setFormData(prevState => ({ ...prevState, [name]: value }));
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // Adiciona o status "unread" e a data atual
-        const messageToSend = { 
-            ...formData, 
-            status: 'unread', 
-            date: new Date().toISOString() // Adiciona a data atual no formato ISO
-        };
-
-        fetch('http://localhost:5000/messages', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(messageToSend)
-        })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Erro ao enviar a mensagem.');
-                }
-                return response.json();
-            })
-            .then(data => {
-                setFormData({ name: '', email: '', message: '' });
-                setStatusMessage('Mensagem enviada com sucesso!');
-                setIsError(false);
-            })
-            .catch(error => {
-                setStatusMessage(error.message);
-                setIsError(true);
+        try {
+            await addDoc(collection(db, 'messages'), {
+                ...formData,
+                status: 'unread',
+                date: serverTimestamp(),
             });
+
+            setFormData({ name: '', email: '', message: '' });
+            setStatusMessage('Mensagem enviada com sucesso!');
+            setIsError(false);
+        } catch (error) {
+            console.error('Erro ao enviar mensagem:', error);
+            setStatusMessage('Erro ao enviar a mensagem. Tente novamente.');
+            setIsError(true);
+        }
     };
 
     return (

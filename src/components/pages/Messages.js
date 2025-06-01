@@ -1,56 +1,56 @@
 import { useState, useEffect } from 'react';
 import { FaTrash, FaEye } from 'react-icons/fa';
+import { collection, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { db } from '../../firebase';
 
 function Messages() {
     const [messages, setMessages] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [filter, setFilter] = useState('all'); // Estado para o filtro
-    const [sortOrder, setSortOrder] = useState('desc'); // Estado para a ordem de classificação
+    const [filter, setFilter] = useState('all');
+    const [sortOrder, setSortOrder] = useState('desc');
 
     useEffect(() => {
         fetchMessages();
     }, []);
 
-    const fetchMessages = () => {
+    const fetchMessages = async () => {
         setLoading(true);
-        fetch('http://localhost:5000/messages')
-            .then((response) => response.json())
-            .then((data) => {
-                setMessages(data);
-                setLoading(false);
-            })
-            .catch((error) => {
-                console.error('Error:', error);
-                setLoading(false);
-            });
+        try {
+            const querySnapshot = await getDocs(collection(db, 'messages'));
+            const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setMessages(data);
+        } catch (error) {
+            console.error('Erro ao buscar mensagens:', error);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handleDelete = (id) => {
-        fetch(`http://localhost:5000/messages/${id}`, {
-            method: 'DELETE',
-        })
-            .then(() => {
-                setMessages(messages.filter(message => message.id !== id));
-            })
-            .catch((error) => console.error('Error:', error));
+    const handleDelete = async (id) => {
+        try {
+            await deleteDoc(doc(db, 'messages', id));
+            setMessages(messages.filter(message => message.id !== id));
+        } catch (error) {
+            console.error('Erro ao excluir mensagem:', error);
+        }
     };
 
-    const handleMarkAsRead = (id) => {
-        fetch(`http://localhost:5000/messages/${id}`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ status: 'read' }),
-        })
-            .then(() => {
-                setMessages(messages.map(message =>
-                    message.id === id ? { ...message, status: 'read' } : message
-                ));
-            })
-            .catch((error) => console.error('Error:', error));
+    const handleMarkAsRead = async (id) => {
+        try {
+            await updateDoc(doc(db, 'messages', id), { status: 'read' });
+            setMessages(messages.map(msg => msg.id === id ? { ...msg, status: 'read' } : msg));
+        } catch (error) {
+            console.error('Erro ao marcar como lida:', error);
+        }
     };
-
+    const handleMarkAsUnread = async (id) => {
+        try {
+            await updateDoc(doc(db, 'messages', id), { status: 'unread' });
+            setMessages(messages.map(msg => msg.id === id ? { ...msg, status: 'unread' } : msg));
+        } catch (error) {
+            console.error('Erro ao marcar como não lida:', error);
+        }
+    };
     const filteredMessages = messages.filter(message => {
         if (filter === 'all') return true;
         return filter === 'read' ? message.status === 'read' : message.status === 'unread';
@@ -88,14 +88,14 @@ function Messages() {
 
                 <button
                     onClick={fetchMessages}
-                    className="bg-yellow-400 text-black font-bold px-4 py-2 rounded-md shadow hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    className="bg-yellow-400 text-black font-bold px-4 py-2 rounded-md shadow hover:bg-yellow-500"
                 >
                     Atualizar
                 </button>
             </div>
 
             {loading ? (
-                <p>Loading...</p>
+                <p>Carregando...</p>
             ) : (
                 <div className="flex flex-col gap-8">
                     {sortedMessages.length > 0 ? (
@@ -106,18 +106,29 @@ function Messages() {
                                 <p className="text-gray-700 mb-2"><strong>Mensagem:</strong> {message.message}</p>
                                 <p className="text-gray-500 mb-4"><strong>Data:</strong> {new Date(message.date).toLocaleString()}</p>
                                 <div className="flex gap-4">
-                                    {message.status === 'unread' && (
-                                        <button onClick={() => handleMarkAsRead(message.id)} className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center">
+                                    {message.status === 'unread' ? (
+                                        <button
+                                            onClick={() => handleMarkAsRead(message.id)}
+                                            className="bg-blue-600 text-white px-4 py-2 rounded-md flex items-center hover:bg-blue-700"
+                                        >
                                             <FaEye className="mr-2" /> Marcar como lida
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => handleMarkAsUnread(message.id)}
+                                            className="bg-yellow-600 text-black px-4 py-2 rounded-md flex items-center hover:bg-yellow-500"
+                                        >
+                                            <FaEye className="mr-2" /> Marcar como não lida
                                         </button>
                                     )}
                                     <button
                                         onClick={() => handleDelete(message.id)}
-                                        className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 flex items-center"
+                                        className="bg-red-600 text-white px-4 py-2 rounded-md flex items-center hover:bg-red-700"
                                     >
                                         <FaTrash className="mr-2" /> Excluir
                                     </button>
                                 </div>
+
                             </div>
                         ))
                     ) : (

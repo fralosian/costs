@@ -2,23 +2,15 @@ import { useEffect, useState } from 'react';
 import Input from '../form/Input';
 import Select from '../form/Select';
 import SubmitButton from '../form/SubmitButton';
+import CategoryModal from '../form/CategoryModal';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../../firebase';
 
 function ProjectForm({ handleSubmit, btnText, projectData }) {
     const [categories, setCategories] = useState([]);
     const [project, setProject] = useState(projectData || {});
     const [errors, setErrors] = useState({});
-
-    useEffect(() => {
-        fetch("http://localhost:5000/categories", {
-            method: "GET",
-            headers: {
-                'Content-Type': 'application/json'
-            },
-        })
-            .then((resp) => resp.json())
-            .then((data) => setCategories(data))
-            .catch(err => console.log(err));
-    }, []);
+    const [showCategoryModal, setShowCategoryModal] = useState(false);
 
     const validate = () => {
         let tempErrors = {};
@@ -28,8 +20,14 @@ function ProjectForm({ handleSubmit, btnText, projectData }) {
         if (!project.category || !project.category.id) tempErrors.category = "A categoria do projeto é obrigatória.";
 
         setErrors(tempErrors);
+
+        if (Object.keys(tempErrors).length > 0) {
+            triggerErrorReset();
+        }
+
         return Object.keys(tempErrors).length === 0;
     };
+
 
     const submit = (e) => {
         e.preventDefault();
@@ -45,13 +43,13 @@ function ProjectForm({ handleSubmit, btnText, projectData }) {
         setProject({ ...project, [e.target.name]: e.target.value });
     }
 
+    // --- ALTERAÇÃO AQUI ---
+    // Agora busca a categoria completa no array categories para salvar id, name e color
     function handleCategory(e) {
+        const selectedCategory = categories.find(cat => cat.id === e.target.value);
         setProject({
             ...project,
-            category: {
-                id: e.target.value,
-                name: e.target.options[e.target.selectedIndex].text,
-            },
+            category: selectedCategory,
         });
     }
 
@@ -64,50 +62,51 @@ function ProjectForm({ handleSubmit, btnText, projectData }) {
     }
 
     useEffect(() => {
-        const timer = setTimeout(() => setErrors({}), 3000);
+        const fetchCategories = async () => {
+            try {
+                const querySnapshot = await getDocs(collection(db, 'categories'));
+                const data = querySnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    name: doc.data().name,
+                    color: doc.data().color, // <== ADICIONADO: pegando a cor da categoria
+                }));
+                setCategories(data);
+            } catch (err) {
+                console.error("Erro ao buscar categorias:", err);
+            }
+        };
 
-        return () => clearTimeout(timer);
-    }, [errors]);
+        fetchCategories();
+    }, []);
+
+    function triggerErrorReset() {
+        setTimeout(() => {
+            setErrors({});
+        }, 3000);
+    }
 
     return (
-        <div className="max-w-3xl mx-auto p-4 bg-white shadow-md rounded-lg mt-10 ">
+        <div className="max-w-3xl mx-auto p-4 bg-white shadow-md rounded-lg mt-10">
+            {/* Erros */}
             {Object.keys(errors).length > 0 && (
                 <div className="mb-6">
-                    {errors.name && (
-                        <div className="flex justify-between items-center text-red-700 bg-red-100 border border-red-300 p-4 mb-4 rounded">
-                            <p>{errors.name}</p>
-                            <button
-                                className="bg-transparent border-none text-2xl cursor-pointer ml-auto"
-                                onClick={() => handleCloseError('name')}
-                            >
-                                &times;
-                            </button>
-                        </div>
-                    )}
-                    {errors.category && (
-                        <div className="flex justify-between items-center text-red-700 bg-red-100 border border-red-300 p-4 mb-4 rounded">
-                            <p>{errors.category}</p>
-                            <button
-                                className="bg-transparent border-none text-2xl cursor-pointer ml-auto"
-                                onClick={() => handleCloseError('category')}
-                            >
-                                &times;
-                            </button>
-                        </div>
-                    )}
-                    {errors.budget && (
-                        <div className="flex justify-between items-center text-red-700 bg-red-100 border border-red-300 p-4 mb-4 rounded">
-                            <p>{errors.budget}</p>
-                            <button
-                                className="bg-transparent border-none text-2xl cursor-pointer ml-auto"
-                                onClick={() => handleCloseError('budget')}
-                            >
-                                &times;
-                            </button>
-                        </div>
-                    )}
+                    {['name', 'budget', 'category'].map(key => (
+                        errors[key] && (
+                            <div key={key} className="flex justify-between items-center text-red-700 bg-red-100 border border-red-300 p-4 mb-4 rounded">
+                                <p>{errors[key]}</p>
+                                <button
+                                    className="bg-transparent border-none text-2xl cursor-pointer ml-auto"
+                                    onClick={() => handleCloseError(key)}
+                                >
+                                    &times;
+                                </button>
+                            </div>
+                        )
+                    ))}
                 </div>
             )}
+
+            {/* Formulário */}
             <form onSubmit={submit} className="space-y-6">
                 <Input
                     type="text"
@@ -132,8 +131,24 @@ function ProjectForm({ handleSubmit, btnText, projectData }) {
                     handleOnChange={handleCategory}
                     value={project.category ? project.category.id : ''}
                 />
+                <button
+                    type="button"
+                    onClick={() => setShowCategoryModal(true)}
+                    className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                >
+                    Editar Categorias
+                </button>
+
                 <SubmitButton text={btnText} />
             </form>
+            {showCategoryModal && (
+                <CategoryModal
+                    categories={categories}
+                    setCategories={setCategories}
+                    onClose={() => setShowCategoryModal(false)}
+                />
+            )}
+
         </div>
     );
 }

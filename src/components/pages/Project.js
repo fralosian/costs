@@ -1,8 +1,10 @@
 import { v4 as uuidv4 } from 'uuid';
 import { useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { useColors } from '../layout/ColorContext';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { db } from '../../firebase';  // ajuste o caminho conforme seu projeto
 
+import useCategories from '../../data/useCategories';
 import Loading from '../layout/Loading';
 import Container from '../layout/Container';
 import ProjectForm from '../project/ProjectForm';
@@ -12,9 +14,7 @@ import ServiceCard from '../service/ServiceCard';
 
 function Project() {
     const { id } = useParams();
-    const colors = useColors();
-
-    const [project, setProject] = useState([]);
+    const [project, setProject] = useState(null);
     const [services, setServices] = useState([]);
     const [showProjectForm, setShowProjectForm] = useState(false);
     const [showServiceForm, setShowServiceForm] = useState(false);
@@ -22,116 +22,137 @@ function Project() {
     const [type, setType] = useState();
     const [editService, setEditService] = useState(null);
     const [editedServiceData, setEditedServiceData] = useState({ name: '', cost: '', description: '' });
+    const { categories, loading: loadingCategories } = useCategories();
+
 
     useEffect(() => {
-        setTimeout(() => {
-            fetch(`http://localhost:5000/projects/${id}`, {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
-            })
-                .then((resp) => resp.json())
-                .then((data) => {
-                    setProject(data);
-                    setServices(data.services);
-                })
-                .catch((err) => console.log(err));
-        }, 2000);
-    }, [id]);
+        async function fetchProject() {
+            try {
+                const docRef = doc(db, 'projects', id);
+                const docSnap = await getDoc(docRef);
 
-    function editPost(project) {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+
+                    // Aqui pega a categoria com cor do Firebase (dinâmica)
+                    const category = categories.find(cat => cat.id === data.category.id);
+
+                    const projectWithCategoryColor = {
+                        id: docSnap.id,
+                        ...data,
+                        category: {
+                            ...data.category,
+                            color: category ? category.color : '#ccc',
+                        }
+                    };
+
+                    setProject(projectWithCategoryColor);
+                    setServices(data.services || []);
+                } else {
+                    console.log('No such project!');
+                }
+            } catch (err) {
+                console.log(err);
+            }
+        }
+
+        if (!loadingCategories) {
+            fetchProject();
+        }
+    }, [id, categories, loadingCategories]);
+
+    async function editPost(projectToUpdate) {
         setMessage('');
 
-        if (project.budget < project.cost) {
+        if (projectToUpdate.budget < projectToUpdate.cost) {
             setMessage('O orçamento não pode ser menor que o custo');
             setType('error');
             return false;
         }
 
-        fetch(`http://localhost:5000/projects/${project.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(project),
-        })
-            .then((resp) => resp.json())
-            .then((data) => {
-                setProject(data);
-                setShowProjectForm(false);
-                setMessage('Projeto atualizado com sucesso!');
-                setType('success');
-            })
-            .catch((err) => {
-                setMessage('Erro ao atualizar o projeto.');
-                setType('error');
-                console.log(err);
+        try {
+            const docRef = doc(db, 'projects', projectToUpdate.id);
+            await updateDoc(docRef, {
+                ...projectToUpdate,
             });
+
+            setProject(projectToUpdate);
+            setShowProjectForm(false);
+            setMessage('Projeto atualizado com sucesso!');
+            setType('success');
+        } catch (err) {
+            setMessage('Erro ao atualizar o projeto.');
+            setType('error');
+            console.log(err);
+        }
     }
 
-    function createService(project) {
+    async function createService(projectWithNewService) {
         setMessage('');
 
-        const lastService = project.services[project.services.length - 1];
+        const lastService = projectWithNewService.services[projectWithNewService.services.length - 1];
         lastService.id = uuidv4();
 
-        const lastServiceCost = lastService.cost;
-        const newCost = parseFloat(project.cost) + parseFloat(lastServiceCost);
+        const lastServiceCost = parseFloat(lastService.cost);
+        const newCost = parseFloat(projectWithNewService.cost) + lastServiceCost;
 
-        if (newCost > parseFloat(project.budget)) {
+        if (newCost > parseFloat(projectWithNewService.budget)) {
             setMessage(null);
             setTimeout(() => {
                 setMessage('Orçamento ultrapassado, verifique o valor do serviço restante');
                 setType('error');
             }, 0);
 
-            project.services.pop();
+            projectWithNewService.services.pop();
             return false;
         }
 
-        project.cost = newCost;
+        projectWithNewService.cost = newCost;
 
-        fetch(`http://localhost:5000/projects/${project.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(project),
-        })
-            .then((resp) => resp.json())
-            .then((data) => {
-                setProject(data);
-                setServices(data.services);
-                setShowServiceForm(false);
-                setMessage(null);
-                setTimeout(() => {
-                    setMessage('Serviço adicionado com sucesso!');
-                    setType('success');
-                }, 0);
-            })
-            .catch((err) => {
-                console.log(err);
-                setMessage('Erro ao atualizar o projeto.');
-                setType('error');
+        try {
+            const docRef = doc(db, 'projects', projectWithNewService.id);
+            await updateDoc(docRef, {
+                ...projectWithNewService,
             });
+
+            setProject(projectWithNewService);
+            setServices(projectWithNewService.services);
+            setShowServiceForm(false);
+            setMessage(null);
+            setTimeout(() => {
+                setMessage('Serviço adicionado com sucesso!');
+                setType('success');
+            }, 0);
+        } catch (err) {
+            console.log(err);
+            setMessage('Erro ao atualizar o projeto.');
+            setType('error');
+        }
     }
 
-    function removeService(id, cost) {
+    async function removeService(serviceId, cost) {
         setMessage('');
 
-        const servicesUpdated = project.services.filter(
-            (service) => service.id !== id
-        );
-        const projectUpdated = { ...project, services: servicesUpdated, cost: parseFloat(project.cost) - parseFloat(cost) };
+        const servicesUpdated = project.services.filter(service => service.id !== serviceId);
+        const projectUpdated = {
+            ...project,
+            services: servicesUpdated,
+            cost: parseFloat(project.cost) - parseFloat(cost)
+        };
 
-        fetch(`http://localhost:5000/projects/${project.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(projectUpdated),
-        })
-            .then((resp) => resp.json())
-            .then((data) => {
-                setProject(data);
-                setServices(servicesUpdated);
-                setMessage('Serviço removido com sucesso!');
-                setType('success');
-            })
-            .catch((err) => console.log(err));
+        try {
+            const docRef = doc(db, 'projects', project.id);
+            await updateDoc(docRef, {
+                ...projectUpdated,
+            });
+
+            setProject(projectUpdated);
+            setServices(servicesUpdated);
+            setMessage('Serviço removido com sucesso!');
+            setType('success');
+        } catch (err) {
+            console.log(err);
+        }
     }
 
     function startEditingService(service) {
@@ -147,7 +168,7 @@ function Project() {
         setEditService(null);
     }
 
-    function updateService(e) {
+    async function updateService(e) {
         e.preventDefault();
         setMessage('');
 
@@ -161,26 +182,26 @@ function Project() {
         const updatedServices = services.map(service =>
             service.id === updatedService.id ? updatedService : service
         );
-        const updatedProject = { ...project, services: updatedServices, cost: updatedServices.reduce((acc, curr) => acc + parseFloat(curr.cost), 0) };
 
-        fetch(`http://localhost:5000/projects/${project.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updatedProject),
-        })
-            .then((resp) => resp.json())
-            .then((data) => {
-                setProject(data);
-                setServices(updatedServices);
-                setMessage('Serviço atualizado com sucesso!');
-                setType('success');
-                setEditService(null);
-            })
-            .catch((err) => {
-                console.log(err);
-                setMessage('Erro ao atualizar o serviço.');
-                setType('error');
+        const updatedCost = updatedServices.reduce((acc, curr) => acc + parseFloat(curr.cost), 0);
+        const updatedProject = { ...project, services: updatedServices, cost: updatedCost };
+
+        try {
+            const docRef = doc(db, 'projects', project.id);
+            await updateDoc(docRef, {
+                ...updatedProject,
             });
+
+            setProject(updatedProject);
+            setServices(updatedServices);
+            setMessage('Serviço atualizado com sucesso!');
+            setType('success');
+            setEditService(null);
+        } catch (err) {
+            console.log(err);
+            setMessage('Erro ao atualizar o serviço.');
+            setType('error');
+        }
     }
 
     function handleEditInputChange(e) {
@@ -199,12 +220,11 @@ function Project() {
         setShowServiceForm(!showServiceForm);
     }
 
-    const categoryColorClass = colors[`category-${project.category?.name.toLowerCase()}`] || 'bg-gray-300';
-
     return (
         <>
-            {project.name ? (
+            {project ? (
                 <div className="w-full p-8">
+
                     <div className="bg-gray-900 text-white rounded-lg p-6 shadow-md mb-6">
                         <h1 className="text-3xl font-semibold text-center text-yellow-400 mb-6">
                             Projeto: {project.name}
@@ -235,7 +255,10 @@ function Project() {
                             <div className="flex items-center space-x-4">
                                 <p className="text-lg">Categoria:</p>
                                 <div className="flex items-center">
-                                    <span className={`w-3 h-3 rounded-full mr-2 ${categoryColorClass}`}></span>
+                                    <span
+                                        className="w-3 h-3 rounded-full mr-2"
+                                        style={{ backgroundColor: project?.category?.color || '#ccc' }}
+                                    ></span>
                                     <span className="text-xl font-semibold">{project.category?.name}</span>
                                 </div>
                             </div>

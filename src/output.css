@@ -1106,22 +1106,6 @@ video {
   transition-duration: 500ms;
 }
 
-.category-infra {
-  background-color: #ffaebc;
-}
-
-.category-desenvolvimento {
-  background-color: #a0e7b5;
-}
-
-.category-design {
-  background-color: #d5b4f8;
-}
-
-.category-planejamento {
-  background-color: #fbe7c6;
-}
-
 .hover\:bg-gray-700:hover {
   --tw-bg-opacity: 1;
   background-color: rgb(55 65 81 / var(--tw-bg-opacity));
